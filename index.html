@@ -100,9 +100,12 @@
   <div id="debtBox" style="display:none">
     <div class="fl"><label for="income_debt_UAH">Сумма долга, грн</label><input id="income_debt_UAH" inputmode="decimal" enterkeyhint="next" placeholder="0"></div>
     <div class="st"><label for="debt_date">Дата возврата долга</label><input id="debt_date" type="date"></div>
-    <div class="st"><label for="comment_txt">Комментарий</label>
-      <textarea id="comment_txt" rows="2" maxlength="500" placeholder="Долг за ИП Иванов"></textarea></div>
+    <div class="st"><label for="debt_comment_txt">Комментарий к долгу</label>
+      <textarea id="debt_comment_txt" rows="2" maxlength="200" placeholder="Долг за ИП Иванов"></textarea></div>
   </div>
+
+  <div class="st"><label for="comment_txt">Комментарий</label>
+    <textarea id="comment_txt" rows="2" maxlength="300" placeholder="Свет оплачен"></textarea></div>
 
   <div class="exb">
     <div class="exh"><span class="lb">Расходы</span>
@@ -121,7 +124,7 @@
   <p id="diff"></p>
   <div id="whyBox" class="st" style="display:none;border-bottom:none">
     <label for="diff_comment_txt" id="whyLbl">Причина недостачи</label>
-    <textarea id="diff_comment_txt" rows="2" maxlength="500"></textarea></div>
+    <textarea id="diff_comment_txt" rows="2" maxlength="300"></textarea></div>
   <p class="err" id="msg"></p>
 
   <button type="button" id="send" class="btn">Отправить отчёт</button>
@@ -250,7 +253,9 @@ $("send").addEventListener("click", () => {
   const data = { v: 2, date: now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()),
                  point: $("point").value,
                  non_cash_recipient: val("income_card_UAH") > 0 ? $("non_cash_recipient").value : "",
-                 debt_date: debtOn ? $("debt_date").value : "", comment_txt: debtOn ? $("comment_txt").value.trim() : "",
+                 debt_date: debtOn ? $("debt_date").value : "",
+                 debt_comment_txt: debtOn ? $("debt_comment_txt").value.trim() : "",
+                 comment_txt: $("comment_txt").value.trim(),
                  expenses, diff_comment_txt: m.diff ? $("diff_comment_txt").value.trim() : "" };
   for (const id of MONEY) data[id] = r2(val(id));
   if (!debtOn) data.income_debt_UAH = 0;
