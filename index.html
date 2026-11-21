@@ -56,8 +56,9 @@
   .sum p.mn { color: var(--text); font-size: 20px; margin-top: 10px; }
   .sum p.mn + p.mn { margin-top: 4px; font-weight: 600; }
   #diff { font-size: 21px; font-weight: 600; color: var(--danger); text-align: right; margin: 0; }
-  #whyBox textarea { border: 2px solid var(--danger); }
+  #diff.none { color: var(--hint); font-weight: 400; }
   #whyBox label { color: var(--danger); }
+  #whyBox textarea.bad { border: 2px solid var(--danger); background: rgba(217, 48, 37, 0.10); }
   .err { font-size: 20px; color: var(--danger); margin: 6px 0 0; min-height: 1px; }
   #send { margin-top: 10px; height: 60px; font-size: 22px; background: var(--accent); color: var(--on-accent);
           border: none; font-weight: 600; }
@@ -184,10 +185,14 @@ function calc() {
     + " + (кар) " + fmt(val("income_card_UAH")) + (m.debt ? "\n+ (в долг) " + fmt(m.debt) : "");
   $("expTotal").textContent = fmt(m.expenses);
   $("cashTotal").textContent = fmt(m.cash) + " − " + fmt(m.expenses) + " = " + fmt(m.cashTotal);
-  $("diff").textContent = m.diff < 0 ? "Недостача " + fmt(-m.diff) + " грн"
-                        : m.diff > 0 ? "Излишек " + fmt(m.diff) + " грн" : "";
+  const factEntered = $("fact_sum_income_UAH").value.trim() !== "";
+  $("diff").textContent = m.diff < 0 ? "Недостача: -" + fmt(-m.diff) + " грн"
+                        : m.diff > 0 ? "Излишек: +" + fmt(m.diff) + " грн"
+                        : factEntered ? "Расхождений нет" : "";
+  $("diff").classList.toggle("none", !m.diff);
   $("whyBox").style.display = m.diff ? "block" : "none";
-  $("whyLbl").textContent = m.diff < 0 ? "Причина недостачи" : "Причина излишка";
+  $("whyLbl").textContent = (m.diff < 0 ? "Причина недостачи" : "Причина излишка") + " *";
+  if ($("diff_comment_txt").value.trim()) $("diff_comment_txt").classList.remove("bad");
   $("diff_comment_txt").placeholder = m.diff < 0 ? "Например: взял на личные нужды"
                                                  : "Например: вернул долг за недостачу 12 марта";
 }
@@ -236,8 +241,10 @@ $("send").addEventListener("click", () => {
   }
   if (!$("fact_sum_income_UAH").value.trim()) return fail("Введите фактически сданную сумму", "fact_sum_income_UAH");
   const m = money();
-  if (m.diff && !$("diff_comment_txt").value.trim())
+  if (m.diff && !$("diff_comment_txt").value.trim()) {
+    $("diff_comment_txt").classList.add("bad");
     return fail(m.diff < 0 ? "Напишите причину недостачи" : "Напишите причину излишка", "diff_comment_txt");
+  }
 
   const p2 = x => String(x).padStart(2, "0");
   const data = { v: 2, date: now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()),
