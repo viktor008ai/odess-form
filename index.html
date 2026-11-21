@@ -88,7 +88,7 @@
   </div>
 
   <div class="fl" style="border-top:1px solid var(--line)"><label for="income_card_UAH">На карту, грн</label><input id="income_card_UAH" inputmode="decimal" enterkeyhint="next" placeholder="0"></div>
-  <div class="st"><label for="non_cash_recipient">Получатель безнала</label>
+  <div class="st" id="rcpBox" style="display:none"><label for="non_cash_recipient">Получатель безнала</label>
     <select id="non_cash_recipient">
       <option value="">Выберите</option>
       <option>Смирнов Виталий Анатольевич</option>
@@ -97,13 +97,12 @@
     </select></div>
 
   <button type="button" id="debtBtn" class="btn" style="margin:12px 0 4px">Отгружено в долг</button>
-  <div id="debtBox" class="off">
+  <div id="debtBox" style="display:none">
     <div class="fl"><label for="income_debt_UAH">Сумма долга, грн</label><input id="income_debt_UAH" inputmode="decimal" enterkeyhint="next" placeholder="0"></div>
     <div class="st"><label for="debt_date">Дата возврата долга</label><input id="debt_date" type="date"></div>
+    <div class="st"><label for="comment_txt">Комментарий</label>
+      <textarea id="comment_txt" rows="2" maxlength="500" placeholder="Долг за ИП Иванов"></textarea></div>
   </div>
-
-  <div class="st"><label for="comment_txt">Комментарий</label>
-    <textarea id="comment_txt" rows="2" maxlength="500" placeholder="Свет оплачен"></textarea></div>
 
   <div class="exb">
     <div class="exh"><span class="lb">Расходы</span>
@@ -180,6 +179,7 @@ function money() {
 }
 function calc() {
   const m = money();
+  $("rcpBox").style.display = val("income_card_UAH") > 0 ? "block" : "none";
   $("sum").textContent = fmt(m.revenue) + " грн";
   $("formula").textContent = "(нал) " + fmt(val("income_UAH")) + " + ($) " + fmt(m.usd) + " + (€) " + fmt(m.eur)
     + " + (кар) " + fmt(val("income_card_UAH")) + (m.debt ? "\n+ (в долг) " + fmt(m.debt) : "");
@@ -205,7 +205,7 @@ document.addEventListener("change", () => calc());
 document.addEventListener("keydown", e => {
   if (e.key !== "Enter" || e.target.tagName !== "INPUT" || e.target.type === "date") return;
   e.preventDefault();
-  const order = Array.from(document.querySelectorAll("input:not([type=date])")).filter(el => !el.closest(".off"));
+  const order = Array.from(document.querySelectorAll("input:not([type=date])")).filter(el => el.offsetParent !== null);
   const next = order[order.indexOf(e.target) + 1];
   if (next) next.focus(); else e.target.blur();
 });
@@ -213,7 +213,7 @@ document.addEventListener("keydown", e => {
 $("debtBtn").addEventListener("click", () => {
   debtOn = !debtOn;
   $("debtBtn").classList.toggle("on", debtOn);
-  $("debtBox").classList.toggle("off", !debtOn);
+  $("debtBox").style.display = debtOn ? "block" : "none";
   if (debtOn) $("income_debt_UAH").focus();
   calc();
 });
@@ -248,8 +248,9 @@ $("send").addEventListener("click", () => {
 
   const p2 = x => String(x).padStart(2, "0");
   const data = { v: 2, date: now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()),
-                 point: $("point").value, non_cash_recipient: $("non_cash_recipient").value,
-                 debt_date: debtOn ? $("debt_date").value : "", comment_txt: $("comment_txt").value.trim(),
+                 point: $("point").value,
+                 non_cash_recipient: val("income_card_UAH") > 0 ? $("non_cash_recipient").value : "",
+                 debt_date: debtOn ? $("debt_date").value : "", comment_txt: debtOn ? $("comment_txt").value.trim() : "",
                  expenses, diff_comment_txt: m.diff ? $("diff_comment_txt").value.trim() : "" };
   for (const id of MONEY) data[id] = r2(val(id));
   if (!debtOn) data.income_debt_UAH = 0;
