@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Принять кассу за день</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --text: var(--tg-theme-text-color, #111111);
+    --hint: var(--tg-theme-hint-color, #6b6b6b);
+    --accent: var(--tg-theme-button-color, #2481cc);
+    --on-accent: var(--tg-theme-button-text-color, #ffffff);
+    --panel: var(--tg-theme-secondary-bg-color, #f1f1f4);
+    --line: rgba(127, 127, 127, 0.25);
+    --danger: #d93025;
+    --ok: #1e8e3e;
+    --expense: rgba(255, 128, 82, 0.16);  /* светло-розово-оранжевый, читается и в тёмной теме */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 14px 18px 28px; }
+  h1 { font-size: 27px; font-weight: 600; margin: 0; }
+  .date { font-size: 20px; color: var(--hint); margin: 2px 0 8px; }
+  .fl { display: grid; grid-template-columns: minmax(0, 1fr) 150px; align-items: center; gap: 10px;
+        padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .st { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  label, .lb { font-size: 21px; line-height: 1.3; }
+  input, select, textarea { width: 100%; font-size: 22px; font-family: inherit; color: var(--text);
+        background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; }
+  input, select { height: 52px; }
+  textarea { padding: 10px 12px; margin-top: 8px; font-size: 21px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  .fl input, .rt input, .ex input { text-align: right; }
+  .st select, .st input, .rt input { margin-top: 6px; }
+  .rt { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: var(--panel);
+        border-radius: 8px; padding: 12px 14px; margin: 6px 0 10px; }
+  .btn { width: 100%; font-size: 20px; padding: 12px 0; border-radius: 8px; border: 1px solid var(--line);
+         background: transparent; color: var(--text); font-family: inherit; cursor: pointer; }
+  .btn.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .off { opacity: .4; pointer-events: none; }
+  .exb { background: var(--expense); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
+  .exh { display: flex; justify-content: space-between; align-items: center; }
+  .exh .lb { font-weight: 600; }
+  .ex { display: grid; grid-template-columns: minmax(0, 1fr) 120px 48px; gap: 8px; align-items: center; margin-top: 10px; }
+  .ex select { padding: 0 8px; }
+  .ib svg { display: block; margin: auto; }
+  .ib { width: 48px; height: 48px; padding: 0; font-size: 28px; line-height: 1; border-radius: 8px;
+        border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: pointer; }
+  .sum { background: var(--panel); border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
+  .sum .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .sum .lbl { font-size: 20px; color: var(--hint); }
+  .sum .val { font-size: 33px; font-weight: 600; }
+  .sum p { margin: 4px 0 0; font-size: 18px; color: var(--hint); white-space: pre-line; }
+  .sum p.mn { color: var(--text); font-size: 20px; margin-top: 10px; }
+  .sum p.mn + p.mn { margin-top: 4px; font-weight: 600; }
+  #diff { font-size: 21px; font-weight: 600; color: var(--danger); text-align: right; margin: 0; }
+  #diff.none { color: var(--hint); font-weight: 400; }
+  #whyBox label { color: var(--danger); }
+  #whyBox textarea.bad { border: 2px solid var(--danger); background: rgba(217, 48, 37, 0.10); }
+  .err { font-size: 20px; color: var(--danger); margin: 6px 0 0; min-height: 1px; }
+  #send { margin-top: 10px; height: 60px; font-size: 22px; background: var(--accent); color: var(--on-accent);
+          border: none; font-weight: 600; }
+  .chg { background: rgba(255, 196, 0, 0.22) !important; border: 2px solid #e0a800 !important; }
+  .exb.chg { outline: 2px solid #e0a800; }
+  .was { display: block; font-size: 16px; color: #b07d00; font-weight: 400; }
+  .src { font-size: 18px; color: var(--hint); margin: 0 0 6px; }
+  .src.none { color: var(--danger); }
+  #fixBox label { color: #b07d00; }
+  #fixBox textarea.bad { border: 2px solid var(--danger); background: rgba(217, 48, 37, 0.10); }
+  .note { font-size: 18px; color: var(--hint); text-align: center; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Принять кассу за день</h1>
+  <p class="date" id="today"></p>
+  <p class="src" id="src"></p>
+
+  <div class="st"><label for="point">Торговая точка</label>
+    <select id="point" disabled>
+      <option selected>Мылка</option>
+      <option>Разгр81</option>
+      <option>Центр</option>
+      <option>Синяя</option>
+    </select></div>
+
+  <div class="fl"><label for="income_UAH">Наличные, грн</label><input id="income_UAH" inputmode="decimal" enterkeyhint="next" placeholder="0"></div>
+  <div class="fl"><label for="income_USD">Наличные, $</label><input id="income_USD" inputmode="decimal" enterkeyhint="next" placeholder="0"></div>
+  <div class="fl" style="border-bottom:none"><label for="income_EUR">Наличные, €</label><input id="income_EUR" inputmode="decimal" enterkeyhint="next" placeholder="0"></div>
+
+  <div class="rt">
+    <div><label for="exchange_opt_UAH_USD">Курс $</label><input id="exchange_opt_UAH_USD" inputmode="decimal" enterkeyhint="next" placeholder="0" value="46"></div>
+    <div><label for="exchange_opt_UAH_EUR">Курс €</label><input id="exchange_opt_UAH_EUR" inputmode="decimal" enterkeyhint="next" placeholder="0" value="50"></div>
+  </div>
+
+  <div class="fl" style="border-top:1px solid var(--line)"><label for="income_card_UAH">На карту, грн</label><input id="income_card_UAH" inputmode="decimal" enterkeyhint="next" placeholder="0"></div>
+  <div class="st" id="rcpBox" style="display:none"><label for="non_cash_recipient">Получатель безнала</label>
+    <select id="non_cash_recipient">
+      <option value="">Выберите</option>
+      <option>Смирнов Виталий Анатольевич</option>
+      <option>Смирнов Игорь Анатольевич</option>
+      <option>Смирнов Дмитрий Анатольевич</option>
+    </select></div>
+
+  <button type="button" id="debtBtn" class="btn" style="margin:12px 0 4px">Отгружено в долг</button>
+  <div id="debtBox" style="display:none">
+    <div class="fl"><label for="income_debt_UAH">Сумма долга, грн</label><input id="income_debt_UAH" inputmode="decimal" enterkeyhint="next" placeholder="0"></div>
+    <div class="st"><label for="debt_date">Дата возврата долга</label><input id="debt_date" type="date"></div>
+    <div class="st"><label for="debt_comment_txt">Комментарий к долгу</label>
+      <textarea id="debt_comment_txt" rows="2" maxlength="200" placeholder="Долг за ИП Иванов"></textarea></div>
+  </div>
+
+  <div class="st"><label for="comment_txt">Комментарий</label>
+    <textarea id="comment_txt" rows="2" maxlength="300" placeholder="Свет оплачен"></textarea></div>
+
+  <div class="exb">
+    <div class="exh"><span class="lb">Расходы</span>
+      <button type="button" class="ib" id="addExp" aria-label="Добавить расход">+</button></div>
+    <div id="expRows"></div>
+  </div>
+
+  <div class="sum">
+    <div class="row"><span class="lbl">Выручка за день</span><span class="val" id="sum">0 грн</span></div>
+    <p id="formula"></p>
+    <p class="mn">Расходы: <span id="expTotal">0</span> грн</p>
+    <p class="mn">Итого наличными: <span id="cashTotal">0</span> грн</p>
+  </div>
+
+  <div class="fl" style="border-bottom:none;padding-bottom:4px"><label for="fact_sum_income_UAH"><b>Фактически сдано, грн</b></label><input id="fact_sum_income_UAH" inputmode="decimal" enterkeyhint="done" placeholder="0" style="border:2px solid var(--accent)"></div>
+  <p id="diff"></p>
+  <div id="whyBox" class="st" style="display:none;border-bottom:none">
+    <label for="diff_comment_txt" id="whyLbl">Причина недостачи</label>
+    <textarea id="diff_comment_txt" rows="2" maxlength="300"></textarea></div>
+  <div id="fixBox" class="st" style="display:none;border-bottom:none">
+    <label for="fix_comment_txt">Комментарий к исправлениям *</label>
+    <textarea id="fix_comment_txt" rows="2" maxlength="300" placeholder="Например: наличные пересчитал, на 100 грн меньше"></textarea></div>
+  <p class="err" id="msg"></p>
+
+  <button type="button" id="send" class="btn">Деньги принял</button>
+  <p class="note">Окно закроется, итог придёт в чат с ботом</p>
+</main>
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+const $ = id => document.getElementById(id);
+const MONEY = ["income_UAH", "income_USD", "income_EUR", "exchange_opt_UAH_USD", "exchange_opt_UAH_EUR",
+               "income_card_UAH", "income_debt_UAH", "fact_sum_income_UAH"];
+const EXPENSE_TYPES = ["Налоги", "Закупка", "Аренда", "Хозтовары", "Докупка товара"];
+const MAX_EXPENSES = 20;
+const isNum = v => !v.trim() || !isNaN(parseFloat(v.replace(/\s/g, "").replace(",", ".")));
+const num = v => { const x = parseFloat(String(v).replace(/\s/g, "").replace(",", ".")); return isNaN(x) ? 0 : x; };
+const r2 = v => Math.round(v * 100) / 100;
+const fmt = v => r2(v).toLocaleString("ru-RU");
+const val = id => num($(id).value);
+let debtOn = false;
+
+// ---------- данные продавца: передаются ботом в адресе формы (#d=<base64url JSON>)
+function readSeller() {
+  const m = location.hash.match(/[#&]d=([^&]+)/);
+  if (!m) return null;
+  try {
+    const b = atob(m[1].replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(b, c => c.charCodeAt(0))));
+  } catch (e) { return null; }
+}
+const seller = readSeller();
+const pointFromUrl = (location.hash.match(/[#&]p=([^&]+)/) || [])[1];
+const now = seller && seller.date ? new Date(seller.date + "T12:00:00") : new Date();
+$("today").textContent = now.toLocaleDateString("ru-RU");
+
+// ---------- расходы
+function addExpense() {
+  if ($("expRows").children.length >= MAX_EXPENSES) return;
+  const row = document.createElement("div");
+  row.className = "ex";
+  row.innerHTML = '<select aria-label="Тип расхода"><option value="">Тип расхода</option>'
+    + EXPENSE_TYPES.map(t => "<option>" + t + "</option>").join("") + "</select>"
+    + '<input inputmode="decimal" enterkeyhint="next" placeholder="0" aria-label="Сумма расхода, грн">'
+    + '<button type="button" class="ib" aria-label="Удалить расход"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg></button>';
+  row.querySelector("button").addEventListener("click", () => { row.remove(); calc(); say(""); });
+  $("expRows").appendChild(row);
+  row.querySelector("select").focus();
+  calc();
+}
+const expenseRows = () => Array.from($("expRows").children).map(r => ({
+  row: r, type: r.querySelector("select").value, raw: r.querySelector("input").value,
+  amount: num(r.querySelector("input").value) }));
+$("addExp").addEventListener("click", addExpense);
+
+// ---------- расчёт
+function money() {
+  const usd = val("income_USD") * val("exchange_opt_UAH_USD");
+  const eur = val("income_EUR") * val("exchange_opt_UAH_EUR");
+  const debt = debtOn ? val("income_debt_UAH") : 0;
+  const expenses = r2(expenseRows().reduce((s, e) => s + e.amount, 0));
+  const cash = r2(val("income_UAH") + usd + eur);          // все наличные в гривнах
+  const revenue = r2(cash + val("income_card_UAH") + debt); // выручка за день
+  const cashTotal = r2(cash - expenses);                    // должно остаться и быть сдано
+  const factRaw = $("fact_sum_income_UAH").value.trim();
+  const diff = factRaw ? r2(val("fact_sum_income_UAH") - cashTotal) : 0;
+  return { usd, eur, debt, expenses, cash, revenue, cashTotal, diff };
+}
+function calc() {
+  const m = money();
+  $("rcpBox").style.display = val("income_card_UAH") > 0 ? "block" : "none";
+  $("sum").textContent = fmt(m.revenue) + " грн";
+  $("formula").textContent = "(нал) " + fmt(val("income_UAH")) + " + ($) " + fmt(m.usd) + " + (€) " + fmt(m.eur)
+    + " + (кар) " + fmt(val("income_card_UAH")) + (m.debt ? "\n+ (в долг) " + fmt(m.debt) : "");
+  $("expTotal").textContent = fmt(m.expenses);
+  $("cashTotal").textContent = fmt(m.cash) + " − " + fmt(m.expenses) + " = " + fmt(m.cashTotal);
+  const factEntered = $("fact_sum_income_UAH").value.trim() !== "";
+  $("diff").textContent = m.diff < 0 ? "Недостача: -" + fmt(-m.diff) + " грн"
+                        : m.diff > 0 ? "Излишек: +" + fmt(m.diff) + " грн"
+                        : factEntered ? "Расхождений нет" : "";
+  $("diff").classList.toggle("none", !m.diff);
+  $("whyBox").style.display = m.diff ? "block" : "none";
+  $("whyLbl").textContent = (m.diff < 0 ? "Причина недостачи" : "Причина излишка") + " *";
+  if ($("diff_comment_txt").value.trim()) $("diff_comment_txt").classList.remove("bad");
+  $("diff_comment_txt").placeholder = m.diff < 0 ? "Например: взял на личные нужды"
+                                                 : "Например: вернул долг за недостачу 12 марта";
+}
+function say(text, ok) { $("msg").textContent = text; $("msg").style.color = ok ? "var(--ok)" : ""; }
+
+document.addEventListener("input", () => { calc(); say(""); });
+document.addEventListener("change", () => calc());
+
+// «Далее» на клавиатуре — к следующему полю (с учётом строк расходов)
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter" || e.target.tagName !== "INPUT" || e.target.type === "date") return;
+  e.preventDefault();
+  const order = Array.from(document.querySelectorAll("input:not([type=date])")).filter(el => el.offsetParent !== null);
+  const next = order[order.indexOf(e.target) + 1];
+  if (next) next.focus(); else e.target.blur();
+});
+
+$("debtBtn").addEventListener("click", () => {
+  debtOn = !debtOn;
+  $("debtBtn").classList.toggle("on", debtOn);
+  $("debtBox").style.display = debtOn ? "block" : "none";
+  if (debtOn) $("income_debt_UAH").focus();
+  calc();
+});
+
+function fail(text, el) {
+  say(text);
+  if (el) (typeof el === "string" ? $(el) : el).focus();
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("error");
+}
+
+$("send").addEventListener("click", () => {
+  for (const id of MONEY) if (!isNum($(id).value)) return fail("Нужно число: " + $(id).labels[0].textContent, id);
+  if (val("income_card_UAH") > 0 && !$("non_cash_recipient").value) return fail("Выберите получателя безнала", "non_cash_recipient");
+  if (val("income_USD") > 0 && !val("exchange_opt_UAH_USD")) return fail("Укажите курс $", "exchange_opt_UAH_USD");
+  if (val("income_EUR") > 0 && !val("exchange_opt_UAH_EUR")) return fail("Укажите курс €", "exchange_opt_UAH_EUR");
+  if (debtOn && !val("income_debt_UAH")) return fail("Укажите сумму долга", "income_debt_UAH");
+  if (debtOn && !$("debt_date").value) return fail("Укажите дату возврата долга", "debt_date");
+  const expenses = [];
+  for (const e of expenseRows()) {
+    if (!e.type && !e.raw.trim()) continue;  // пустая строка — пропускаем
+    if (!isNum(e.raw) || e.amount < 0) return fail("Нужно число: сумма расхода", e.row.querySelector("input"));
+    if (!e.type) return fail("Выберите тип расхода", e.row.querySelector("select"));
+    if (!e.amount) return fail("Укажите сумму расхода: " + e.type, e.row.querySelector("input"));
+    expenses.push({ expense_type: e.type, expense_UAH: r2(e.amount) });
+  }
+  if (!$("fact_sum_income_UAH").value.trim()) return fail("Введите фактически сданную сумму", "fact_sum_income_UAH");
+  const m = money();
+  if (m.diff && !$("diff_comment_txt").value.trim()) {
+    $("diff_comment_txt").classList.add("bad");
+    return fail(m.diff < 0 ? "Напишите причину недостачи" : "Напишите причину излишка", "diff_comment_txt");
+  }
+
+  const ch = markChanges();
+  if (ch.length && !$("fix_comment_txt").value.trim()) {
+    $("fix_comment_txt").classList.add("bad");
+    return fail("Напишите, что исправили и почему", "fix_comment_txt");
+  }
+
+  const p2 = x => String(x).padStart(2, "0");
+  const data = { v: 2, form: "findir", fix_comment_txt: ch.length ? $("fix_comment_txt").value.trim() : "", date: now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate()),
+                 point: $("point").value,
+                 non_cash_recipient: val("income_card_UAH") > 0 ? $("non_cash_recipient").value : "",
+                 debt_date: debtOn ? $("debt_date").value : "",
+                 debt_comment_txt: debtOn ? $("debt_comment_txt").value.trim() : "",
+                 comment_txt: $("comment_txt").value.trim(),
+                 expenses, diff_comment_txt: m.diff ? $("diff_comment_txt").value.trim() : "" };
+  for (const id of MONEY) data[id] = r2(val(id));
+  if (!debtOn) data.income_debt_UAH = 0;
+  Object.assign(data, { sum_income_UAH: m.revenue, sum_expenses_UAH: m.expenses,
+                        cash_total_UAH: m.cashTotal, diff_UAH: m.diff });
+
+  // у формы, открытой кнопкой меню, initData пустой; вне Telegram platform = "unknown"
+  if (!tg || tg.platform === "unknown") { say("Форма открыта не из Telegram: откройте её кнопкой в боте"); return; }
+  tg.sendData(JSON.stringify(data));  // Telegram закроет окно сам
+});
+
+// ---------- подстановка и сравнение с продавцом
+const TEXT = ["non_cash_recipient", "debt_comment_txt", "comment_txt", "diff_comment_txt"];
+const CMP = ["income_UAH", "income_USD", "income_EUR", "exchange_opt_UAH_USD", "exchange_opt_UAH_EUR",
+             "income_card_UAH", "non_cash_recipient", "income_debt_UAH", "debt_date", "debt_comment_txt",
+             "comment_txt", "fact_sum_income_UAH"];
+const showVal = (id, v) => v === "" || v === null || v === undefined ? "—"
+  : id === "debt_date" ? String(v).split("-").reverse().join(".") : String(v);
+const expText = list => list.map(e => e.expense_type + " " + fmt(e.expense_UAH)).join(", ") || "нет";
+function currentExpenses() {
+  return expenseRows().filter(e => e.type || e.raw.trim()).map(e => ({ expense_type: e.type, expense_UAH: r2(e.amount) }));
+}
+function sameField(id) {
+  const a = seller[id] === undefined ? (MONEY.includes(id) ? 0 : "") : seller[id];
+  if (MONEY.includes(id)) return r2(val(id)) === r2(num(a));
+  if (id === "income_debt_UAH" || id === "debt_date" || id === "debt_comment_txt")
+    return (debtOn ? $(id).value.trim() : "") === String(a || "");
+  return $(id).value.trim() === String(a || "");
+}
+function changes() {
+  if (!seller) return [];
+  const list = CMP.filter(id => id === "income_debt_UAH" ? r2(debtOn ? val(id) : 0) !== r2(num(seller[id] || 0)) : !sameField(id));
+  if (expText(currentExpenses()) !== expText(seller.expenses || [])) list.push("expenses");
+  return list;
+}
+function markChanges() {
+  const ch = changes();
+  CMP.forEach(id => {
+    const el = $(id), lbl = el.labels && el.labels[0];
+    el.classList.toggle("chg", ch.includes(id));
+    if (!lbl) return;
+    let w = lbl.querySelector(".was");
+    if (ch.includes(id)) {
+      if (!w) { w = document.createElement("span"); w.className = "was"; lbl.appendChild(w); }
+      w.textContent = "у продавца: " + showVal(id, seller[id]);
+    } else if (w) w.remove();
+  });
+  const exb = document.querySelector(".exb"), ew = exb.querySelector(".was");
+  exb.classList.toggle("chg", ch.includes("expenses"));
+  if (ch.includes("expenses")) {
+    const t = "у продавца: " + expText(seller.expenses || []);
+    if (ew) ew.textContent = t; else exb.insertAdjacentHTML("beforeend", '<span class="was"></span>'), exb.lastChild.textContent = t;
+  } else if (ew) ew.remove();
+  $("fixBox").style.display = ch.length ? "block" : "none";
+  if ($("fix_comment_txt").value.trim()) $("fix_comment_txt").classList.remove("bad");
+  return ch;
+}
+document.addEventListener("input", markChanges);
+document.addEventListener("change", markChanges);
+$("debtBtn").addEventListener("click", markChanges);
+$("expRows").addEventListener("click", () => setTimeout(markChanges));
+$("addExp").addEventListener("click", markChanges);
+
+if (seller) {
+  $("point").value = seller.point;
+  for (const id of MONEY) { const v = num(seller[id] || 0); $(id).value = v ? String(v) : ""; }
+  if (!num(seller.exchange_opt_UAH_USD)) $("exchange_opt_UAH_USD").value = "46";
+  if (!num(seller.exchange_opt_UAH_EUR)) $("exchange_opt_UAH_EUR").value = "50";
+  TEXT.forEach(id => { $(id).value = seller[id] || ""; });
+  if (num(seller.income_debt_UAH)) { $("debtBtn").click(); $("debt_date").value = seller.debt_date || ""; }
+  (seller.expenses || []).forEach(e => {
+    addExpense();
+    const r = $("expRows").lastChild;
+    r.querySelector("select").value = e.expense_type; r.querySelector("input").value = String(e.expense_UAH);
+  });
+  document.activeElement.blur(); window.scrollTo(0, 0);
+  $("src").textContent = "Отчёт продавца" + (seller.seller ? " (" + seller.seller + ")" : "")
+    + ". Исправьте, если есть отличия.";
+} else {
+  if (pointFromUrl) $("point").value = decodeURIComponent(pointFromUrl);
+  else $("point").disabled = false;
+  $("src").textContent = "Продавец ещё не сдал отчёт — заполните вручную.";
+  $("src").classList.add("none");
+}
+calc(); markChanges();
+</script>
+</body>
+</html>
