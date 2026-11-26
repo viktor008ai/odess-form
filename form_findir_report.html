@@ -64,7 +64,8 @@
   #send { margin-top: 10px; height: 60px; font-size: 22px; background: var(--accent); color: var(--on-accent);
           border: none; font-weight: 600; }
   .chg { background: rgba(255, 196, 0, 0.22) !important; border: 2px solid #e0a800 !important; }
-  .exb.chg { outline: 2px solid #e0a800; }
+  .ex .was { grid-column: 1 / -1; margin-top: -4px; }
+  .ex select:disabled { opacity: 1; color: var(--text); }
   .was { display: block; font-size: 16px; color: #b07d00; font-weight: 400; }
   .src { font-size: 18px; color: var(--hint); margin: 0 0 6px; }
   .src.none { color: var(--danger); }
@@ -264,7 +265,7 @@ $("send").addEventListener("click", () => {
     if (!e.type && !e.raw.trim()) continue;  // пустая строка — пропускаем
     if (!isNum(e.raw) || e.amount < 0) return fail("Нужно число: сумма расхода", e.row.querySelector("input"));
     if (!e.type) return fail("Выберите тип расхода", e.row.querySelector("select"));
-    if (!e.amount) return fail("Укажите сумму расхода: " + e.type, e.row.querySelector("input"));
+    if (!e.amount && !("orig" in e.row.dataset)) return fail("Укажите сумму расхода: " + e.type, e.row.querySelector("input"));
     expenses.push({ expense_type: e.type, expense_UAH: r2(e.amount) });
   }
   if (!$("fact_sum_income_UAH").value.trim()) return fail("Введите фактически сданную сумму", "fact_sum_income_UAH");
@@ -316,10 +317,16 @@ function sameField(id) {
     return (debtOn ? $(id).value.trim() : "") === String(a || "");
   return $(id).value.trim() === String(a || "");
 }
+// строка расхода изменена: у строки продавца — другая сумма, новая строка финдиректора — всегда
+function expChanged(row) {
+  const inp = row.querySelector("input");
+  if (!("orig" in row.dataset)) return !!(row.querySelector("select").value || inp.value.trim());
+  return r2(num(inp.value)) !== r2(num(row.dataset.orig));
+}
 function changes() {
   if (!seller) return [];
   const list = CMP.filter(id => id === "income_debt_UAH" ? r2(debtOn ? val(id) : 0) !== r2(num(seller[id] || 0)) : !sameField(id));
-  if (expText(currentExpenses()) !== expText(seller.expenses || [])) list.push("expenses");
+  if (expenseRows().some(e => expChanged(e.row))) list.push("expenses");
   return list;
 }
 function markChanges() {
@@ -334,12 +341,16 @@ function markChanges() {
       w.textContent = "у продавца: " + showVal(id, seller[id]);
     } else if (w) w.remove();
   });
-  const exb = document.querySelector(".exb"), ew = exb.querySelector(".was");
-  exb.classList.toggle("chg", ch.includes("expenses"));
-  if (ch.includes("expenses")) {
-    const t = "у продавца: " + expText(seller.expenses || []);
-    if (ew) ew.textContent = t; else exb.insertAdjacentHTML("beforeend", '<span class="was"></span>'), exb.lastChild.textContent = t;
-  } else if (ew) ew.remove();
+  if (seller) Array.from($("expRows").children).forEach(row => {
+    const changed = expChanged(row), inp = row.querySelector("input");
+    inp.classList.toggle("chg", changed);
+    if (!("orig" in row.dataset)) row.querySelector("select").classList.toggle("chg", changed);
+    let w = row.querySelector(".was");
+    if (changed) {
+      if (!w) { w = document.createElement("span"); w.className = "was"; row.appendChild(w); }
+      w.textContent = "orig" in row.dataset ? "у продавца: " + row.dataset.orig : "у продавца не было";
+    } else if (w) w.remove();
+  });
   $("fixBox").style.display = ch.length ? "block" : "none";
   if ($("fix_comment_txt").value.trim()) $("fix_comment_txt").classList.remove("bad");
   return ch;
@@ -361,6 +372,10 @@ if (seller) {
     addExpense();
     const r = $("expRows").lastChild;
     r.querySelector("select").value = e.expense_type; r.querySelector("input").value = String(e.expense_UAH);
+    // строка продавца: тип не меняется и не удаляется, сумму можно исправить (в т.ч. на 0)
+    r.dataset.orig = String(e.expense_UAH);
+    r.querySelector("select").disabled = true;
+    r.querySelector("button").style.visibility = "hidden";
   });
   document.activeElement.blur(); window.scrollTo(0, 0);
   $("src").textContent = "Отчёт продавца" + (seller.seller ? " (" + seller.seller + ")" : "")
