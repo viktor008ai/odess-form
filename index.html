@@ -136,7 +136,7 @@ if (tg) { tg.ready(); tg.expand(); }
 const $ = id => document.getElementById(id);
 const MONEY = ["income_UAH", "income_USD", "income_EUR", "exchange_opt_UAH_USD", "exchange_opt_UAH_EUR",
                "income_card_UAH", "income_debt_UAH", "fact_sum_income_UAH"];
-const EXPENSE_TYPES = ["Налоги", "Закупка", "Аренда"];
+const EXPENSE_TYPES = ["Налоги", "Закупка", "Аренда", "Хозтовары", "Докупка товара"];
 const MAX_EXPENSES = 20;
 const isNum = v => !v.trim() || !isNaN(parseFloat(v.replace(/\s/g, "").replace(",", ".")));
 const num = v => { const x = parseFloat(String(v).replace(/\s/g, "").replace(",", ".")); return isNaN(x) ? 0 : x; };
