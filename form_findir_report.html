@@ -168,7 +168,9 @@ function readSeller() {
 }
 const seller = readSeller();
 const pointFromUrl = (location.hash.match(/[#&]p=([^&]+)/) || [])[1];
-const now = seller && seller.date ? new Date(seller.date + "T12:00:00") : new Date();
+const dayFromUrl = (location.hash.match(/[#&]day=(\d{4}-\d{2}-\d{2})/) || [])[1];  // дата, выбранная в боте
+const now = seller && seller.date ? new Date(seller.date + "T12:00:00")
+          : dayFromUrl ? new Date(dayFromUrl + "T12:00:00") : new Date();
 $("today").textContent = now.toLocaleDateString("ru-RU");
 
 // ---------- расходы
@@ -366,7 +368,7 @@ if (seller) {
 } else {
   if (pointFromUrl) $("point").value = decodeURIComponent(pointFromUrl);
   else $("point").disabled = false;
-  $("src").textContent = "Продавец ещё не сдал отчёт — заполните вручную.";
+  $("src").textContent = "Продавец за этот день отчёт не сдал — заполните вручную.";
   $("src").classList.add("none");
 }
 calc(); markChanges();
